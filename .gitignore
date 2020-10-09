@@ -2,3 +2,4 @@ venv
 .idea/*
 defenses/elmo/*
 data/EM/datasets/*
+__pycache__
