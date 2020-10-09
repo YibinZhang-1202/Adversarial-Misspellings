@@ -7,6 +7,7 @@ import utils
 from utils import * #FIXME: should not do this
 import argparse
 import time
+import os
 
 # torch related imports
 import torch
@@ -74,7 +75,20 @@ parser.add_argument('--test-file', dest='test_file', type=str,
 parser.add_argument('--task-name', dest='task_name', type=str,
         default="")
 
+### new
+parser.add_argument('--min-freq', dest='min_freq', type=int, default=1)
+parser.add_argument('--ori-folder', dest='ori_folder', type=str, default='')
+parser.add_argument('--pred-folder', dest='pred_folder', type=str, default='')
+###
+
 params = vars(parser.parse_args())
+
+### new
+min_freq = params['min_freq']
+MIN_FREQ = min_freq
+ori_folder = params['ori_folder']
+pred_folder = params['pred_folder']
+###
 
 # useful variables for representation type and strength...
 train_rep_list = params['train_rep_list']
@@ -88,7 +102,7 @@ vocab_size = params['vocab_size']
 vocab_size_bg = params['vocab_size_bg']
 task_name = params['task_name']
 NUM_EPOCHS = params['num_epochs']
-set_word_limit(vocab_size, task_name)
+set_word_limit(vocab_size, task_name, min_freq)
 WORD_LIMIT = vocab_size
 STOP_AFTER = 25
 
@@ -103,12 +117,12 @@ background_train = params['background_train']
 
 
 # paths to important stuff..
-PWD = "/home/danish/git/break-it-build-it/src/defenses/scRNN/"
+PWD = ""
 
 # path to vocabs
-w2i_PATH = PWD + "vocab/" + task_name  + "w2i_" + str(vocab_size) + ".p"
-i2w_PATH = PWD + "vocab/" + task_name + "i2w_" + str(vocab_size) + ".p"
-CHAR_VOCAB_PATH = PWD + "vocab/" + task_name + "CHAR_VOCAB_ " + str(vocab_size) + ".p"
+w2i_PATH = PWD + "vocab/" + task_name[0:-1] + '/' + task_name  + "w2i_" + str(vocab_size) + ".p"
+i2w_PATH = PWD + "vocab/" + task_name[0:-1] + '/' + task_name + "i2w_" + str(vocab_size) + ".p"
+CHAR_VOCAB_PATH = PWD + "vocab/" + task_name[0:-1] + '/' + task_name + "CHAR_VOCAB_ " + str(vocab_size) + ".p"
 common_cv_path = params['common_cv_path']
 
 # paths to background vocabs
@@ -183,8 +197,12 @@ def compute_WER(true_lines, output_lines):
 
 
 def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
-        desc, iter_count, print_stuff=True, use_background=False, model_bg=None):
-    data_lines = sorted(data_lines, key = lambda x:len(x.split()), reverse=True)
+        desc, iter_count, print_stuff=True, use_background=False, model_bg=None, pred_f=None, ori_f=None):
+
+    sorted_enumerate = sorted(enumerate(data_lines), key=lambda x:len(x[1].split()), reverse=True)
+    data_lines = [i[1] for i in sorted_enumerate]
+    data_lines_indices = [i[0] for i in sorted_enumerate]
+
     Xtype = torch.FloatTensor
     ytype = torch.LongTensor
     criterion = nn.CrossEntropyLoss(size_average=True, ignore_index=TARGET_PAD_IDX)
@@ -239,7 +257,7 @@ def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
             y_pred_bg = ty_pred_bg.detach().cpu().numpy()
 
 
-        for idx in range(batch_size):
+        for idx in range(0,len(input_lines)):
             y_pred_i = [np.argmax(y_pred[idx][:, i]) for i in range(lens[idx])]
 
             y_pred_bg_i = None
@@ -261,6 +279,20 @@ def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
 
     WER = compute_WER(true_lines, predicted_lines)
 
+    if desc == 'test':
+        sorted_true_lines = []
+        for i in range(len(true_lines)):
+            sorted_true_lines.append(true_lines[data_lines_indices.index(i)])
+        for x in sorted_true_lines:
+            ori_f.write(x+'\n')
+
+        sorted_pred_lines = []
+        for i in range(len(predicted_lines)):
+            sorted_pred_lines.append(predicted_lines[data_lines_indices.index(i)])
+        for x in sorted_pred_lines:
+            pred_f.write(x+'\n')
+
+
     if print_stuff:
         print ("Average %s loss after %d iteration = %0.4f" %(desc, iter_count,
                     total_loss/len(true_lines)))
@@ -272,10 +304,12 @@ def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
 
 def main():
 
-    train_lines = get_lines(train_file)
+    if params['need_to_train']:
+        train_lines = get_lines(train_file)
+        val_lines = get_lines(dev_file)
 
     if params['new_vocab']:
-        print ("creating new vocabulary")
+        print("creating new vocabulary")
         create_vocab(train_file, background_train, common_cv_path)
     else:
         print ("loading existing vocabulary")
@@ -284,10 +318,11 @@ def main():
             print ("loading existing background vocabulary")
             load_vocab_dicts(w2i_PATH_BG, i2w_PATH_BG, CHAR_VOCAB_PATH_BG, use_background)
 
-
     print ("len of w2i ", len(utils.w2i))
     print ("len of i2w ", len(utils.i2w))
     print ("len of char vocab", len(utils.CHAR_VOCAB))
+    WORD_LIMIT = len(utils.w2i)
+    vocab_size = len(utils.w2i)
 
     if params['need_to_train']:
         print ("Word limit from utils ", WORD_LIMIT)
@@ -316,14 +351,14 @@ def main():
         if use_background:
             model_bg.cuda()
 
-    val_lines = get_lines(dev_file)
-    test_lines = get_lines(test_file)
 
     if params['need_to_train']:
         # begin training ...
         print (" *** training the model *** ")
         best_val_WER = 100.0
         last_dumped_idx = 99999
+
+        print(NUM_EPOCHS)
         for ITER in range(NUM_EPOCHS):
             st_time = time.time()
             _ = iterate(model, optimizer, train_lines, True, train_rep_list,
@@ -332,8 +367,8 @@ def main():
             curr_val_WER = iterate(model, None, val_lines, False, val_rep_list,
                     val_rep_probs, 'val', ITER+1)
 
-            _ = iterate(model, None, test_lines, False, val_rep_list,
-                    val_rep_probs, 'test', ITER+1)
+            # _ = iterate(model, None, test_lines, False, val_rep_list,
+            #         val_rep_probs, 'test', ITER+1)
 
 
             if save:
@@ -348,7 +383,7 @@ def main():
                     print ("Dumping after ", ITER + 1)
                     model_name = model_type
                     torch.save(model,
-                            "tmp/consideration/" + model_name +  \
+                            "model_temp/" + model_name +  \
                             "_TASK_NAME=" + task_name + \
                             "_VOCAB_SIZE=" + str(vocab_size) + \
                             "_REP_LIST=" + train_rep_names + \
@@ -367,24 +402,34 @@ def main():
 
     else:
         # just run the model on validation and test...
-#print (" *** running the model on val and test set *** ")
+        #print (" *** running the model on val and test set *** ")
+        test_files = os.listdir(ori_folder)
+        test_files = [ori_folder+'/'+x for x in test_files]
 
-        st_time = time.time()
+        for x in test_files:
+            pred_f = open(pred_folder+'/pred_'+x.split('/')[-1], 'w')
+            ori_f = open(pred_folder + '/ori_' + x.split('/')[-1], 'w')
+            print(x)
+            test_lines = get_lines(x)
 
-        val_WER = iterate(model, None, val_lines, False, val_rep_list,
-                val_rep_probs, 'val', 0, use_background=use_background, model_bg=model_bg)
+            st_time = time.time()
 
-        test_WER = iterate(model, None, test_lines, False, val_rep_list,
-                val_rep_probs, 'test', 0, False, use_background=use_background, model_bg=model_bg)
+            # val_WER = iterate(model, None, val_lines, False, val_rep_list,
+            #         val_rep_probs, 'val', 0, use_background=use_background, model_bg=model_bg)
 
-        # report the time taken per iteration for val + test
-        en_time = time.time()
-        print ("Time for the testing process = %0.1f seconds" %(en_time - st_time))
-        val_rep_names = " ".join(val_rep_list)
-        model_name = MODEL_PATH.split("/")[-1]
-        print (val_rep_names + "\t" + model_name + "\t" + str(val_WER) + "\t"\
-                + str(test_WER))
+            test_WER = iterate(model, None, test_lines, False, ['none'],
+                    [1.0], 'test', 0, False, use_background=use_background, model_bg=model_bg, pred_f=pred_f, ori_f=ori_f)
 
+            # report the time taken per iteration for val + test
+            en_time = time.time()
+            print ("Time for the testing process = %0.1f seconds" %(en_time - st_time))
+            # val_rep_names = " ".join(val_rep_list)
+            # model_name = MODEL_PATH.split("/")[-1]
+            # print (val_rep_names + "\t" + model_name + "\t" + str(val_WER) + "\t"\
+            #         + str(test_WER))
+
+            pred_f.close()
+            ori_f.close()
 
     return
 
