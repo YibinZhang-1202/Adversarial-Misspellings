@@ -23,13 +23,17 @@ task_name = ""
 TARGET_PAD_IDX = -1
 INPUT_PAD_IDX = 0
 
+min_freq = 1
+
 keyboard_mappings = None
 
-def set_word_limit(word_limit, task=""):
+def set_word_limit(word_limit, task="", minfreq=1):
     global WORD_LIMIT
     global task_name
+    global min_freq
     WORD_LIMIT = word_limit
     task_name = task
+    min_freq = minfreq
 
 
 def get_lines(filename):
@@ -44,7 +48,7 @@ def get_lines(filename):
 
 
 def create_vocab(filename, background_train=False, cv_path=""):
-    global w2i, i2w, CHAR_VOCAB
+    global w2i, i2w, CHAR_VOCAB, WORD_LIMIT
     lines = get_lines(filename)
     for line in lines:
         for word in line.split():
@@ -59,6 +63,17 @@ def create_vocab(filename, background_train=False, cv_path=""):
     if background_train:
         CHAR_VOCAB = pickle.load(open(cv_path, 'rb'))
     word_list = sorted(w2i.items(), key=lambda x:x[1], reverse=True)
+
+    remove_list = []
+
+    for x in word_list:
+        if x[1] < min_freq:
+            remove_list.append(x)
+    for x in remove_list:
+        word_list.remove(x)
+
+    WORD_LIMIT = len(word_list)
+    print("length of vocabulary", WORD_LIMIT)
     word_list = word_list[:WORD_LIMIT] # only need top few words
 
     # remaining words are UNKs ... sorry!
@@ -128,8 +143,8 @@ def get_batched_input_data(lines, batch_size, rep_list=['swap'], probs=[1.0]):
     #shuffle(lines)
     total_len = len(lines)
     output = []
-    for batch_start in range(0, len(lines) - batch_size, batch_size):
-
+    batch_start = 0
+    while batch_start < total_len:
         input_lines = []
         modified_lines = []
         X = []
@@ -138,7 +153,9 @@ def get_batched_input_data(lines, batch_size, rep_list=['swap'], probs=[1.0]):
         max_len = max([len(line.split()) \
                 for line in lines[batch_start: batch_start + batch_size]])
 
-        for line in lines[batch_start: batch_start + batch_size]:
+        line_start = batch_start
+        while line_start < batch_start + batch_size and line_start < total_len:
+            line = lines[line_start]
             X_i, modified_line_i = get_line_representation(line, rep_list, probs)
             assert (len(line.split()) == len(modified_line_i.split()))
             y_i = get_target_representation(line)
@@ -152,7 +169,11 @@ def get_batched_input_data(lines, batch_size, rep_list=['swap'], probs=[1.0]):
             y.append(y_i)
             lens.append(len(modified_line_i.split()))
 
+            line_start = line_start + 1
+
         output.append((input_lines, modified_lines, np.array(X), np.array(y), lens))
+
+        batch_start = batch_start + batch_size
     return output
 
 def get_line_representation(line, rep_list=['swap'], probs=[1.0]):

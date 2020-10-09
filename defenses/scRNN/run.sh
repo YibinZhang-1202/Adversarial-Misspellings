@@ -1,0 +1,3 @@
+#python3 train.py --train-file ../../data/EM/datasets/structured_beer/train_scrnn.txt --dev-file ../../data/EM/datasets/structured_beer/valid_scrnn.txt --train-rep 'swap' 'drop' 'add' 'none' --val-rep 'swap' 'drop' 'add' 'none' --train-rep-probs 0.25 0.25 0.25 0.25 --val-rep-probs 0.25 0.25 0.25 0.25 --task-name sb_ --new-vocab --min-freq 1 --model-type elmo-plus-scrnn --num-epochs 80 --save --unk-output
+
+python3 train.py --no-train --vocab-size 951 --task-name sb_ --model-path model_temp/elmo-plus-scrnn_sb__minfreq=1 --ori-folder ../../data/EM/datasets/structured_beer/ori_files --pred-folder ../../data/EM/datasets/structured_beer/pred_results --unk-output --model-type elmo-plus-scrnn
