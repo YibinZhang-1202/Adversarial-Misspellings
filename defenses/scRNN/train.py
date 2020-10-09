@@ -126,7 +126,7 @@ CHAR_VOCAB_PATH = PWD + "vocab/" + task_name[0:-1] + '/' + task_name + "CHAR_VOC
 common_cv_path = params['common_cv_path']
 
 # paths to background vocabs
-w2i_PATH_BG = PWD + "vocab/" + task_name  + "w2i_" + str(vocab_size_bg) + ".p"
+w2i_PATH_BG = PWD + "vocab/" + task_name + "w2i_" + str(vocab_size_bg) + ".p"
 i2w_PATH_BG = PWD + "vocab/" + task_name + "i2w_" + str(vocab_size_bg) + ".p"
 CHAR_VOCAB_PATH_BG = PWD + "vocab/" + task_name + "CHAR_VOCAB_ " + str(vocab_size_bg) + ".p"
 
