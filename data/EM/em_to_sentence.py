@@ -1,29 +1,30 @@
 import pandas as pd
 import os
 
-PATH = 'datasets/structured_beer'
-INPUT = 'test.csv'
-OUTPUT = 'test_scrnn.txt'
+PATH = 'datasets/structured_beer/ori_csv'
+csv_files = [PATH+'/'+x for x in os.listdir(PATH)]
 
-out_f = open(os.path.join(PATH,OUTPUT), 'w')
-dataset = pd.read_csv(os.path.join(PATH,INPUT))
-fields = dataset.columns[2:]
+for x in csv_files:
+    dataset = pd.read_csv(x)
+    fields = dataset.columns[2:]
 
-for index, row in dataset.iterrows():
-    left_line = ""
-    right_line = ""
-    for field in fields:
-        if field.startswith('left_'):
-            left_line = left_line + row[field] + ' , '
-        elif field.startswith('right_'):
-            right_line = right_line + row[field] + ' , '
+    gen_path = PATH.split('csv')[0] + 'txt'
+    gen_path = gen_path + '/' + x.split('/')[-1].split('.')[0] + '.txt'
+    print(gen_path)
+    out_f = open(gen_path, 'w')
 
-    left_line = left_line[0:-3]
-    right_line = right_line[0:-3]
-    out_f.write(left_line+'\n')
-    out_f.write(right_line+'\n')
-    print(left_line)
-    print(right_line)
-    print()
+    for index, row in dataset.iterrows():
+        left_line = ""
+        right_line = ""
+        for field in fields:
+            if field.startswith('left_'):
+                left_line = left_line + row[field] + ' , '
+            elif field.startswith('right_'):
+                right_line = right_line + row[field] + ' , '
 
-out_f.close()
+        left_line = left_line[0:-3]
+        right_line = right_line[0:-3]
+        out_f.write(left_line+'\n')
+        out_f.write(right_line+'\n')
+
+    out_f.close()
