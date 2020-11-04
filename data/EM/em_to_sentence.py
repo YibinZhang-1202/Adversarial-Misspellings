@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-PATH = 'datasets/structured_beer/ori_csv'
+PATH = 'datasets/structured_itunes_amazon/ori_csv'
 csv_files = [PATH+'/'+x for x in os.listdir(PATH)]
 
 for x in csv_files:
@@ -18,9 +18,9 @@ for x in csv_files:
         right_line = ""
         for field in fields:
             if field.startswith('left_'):
-                left_line = left_line + row[field] + ' , '
+                left_line = left_line + str(row[field]) + ' , '
             elif field.startswith('right_'):
-                right_line = right_line + row[field] + ' , '
+                right_line = right_line + str(row[field]) + ' , '
 
         left_line = left_line[0:-3]
         right_line = right_line[0:-3]

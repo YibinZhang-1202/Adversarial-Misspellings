@@ -197,7 +197,7 @@ def compute_WER(true_lines, output_lines):
 
 
 def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
-        desc, iter_count, print_stuff=True, use_background=False, model_bg=None, pred_f=None, ori_f=None):
+        desc, iter_count, print_stuff=True, use_background=False, model_bg=None, pred_f=None):
 
     sorted_enumerate = sorted(enumerate(data_lines), key=lambda x:len(x[1].split()), reverse=True)
     data_lines = [i[1] for i in sorted_enumerate]
@@ -280,12 +280,6 @@ def iterate(model, optimizer, data_lines, need_to_train, rep_list, rep_probs,
     WER = compute_WER(true_lines, predicted_lines)
 
     if desc == 'test':
-        sorted_true_lines = []
-        for i in range(len(true_lines)):
-            sorted_true_lines.append(true_lines[data_lines_indices.index(i)])
-        for x in sorted_true_lines:
-            ori_f.write(x+'\n')
-
         sorted_pred_lines = []
         for i in range(len(predicted_lines)):
             sorted_pred_lines.append(predicted_lines[data_lines_indices.index(i)])
@@ -407,8 +401,7 @@ def main():
         test_files = [ori_folder+'/'+x for x in test_files]
 
         for x in test_files:
-            pred_f = open(pred_folder+'/pred_'+x.split('/')[-1], 'w')
-            ori_f = open(pred_folder + '/ori_' + x.split('/')[-1], 'w')
+            pred_f = open(pred_folder+'/'+x.split('/')[-1], 'w')
             print(x)
             test_lines = get_lines(x)
 
@@ -418,7 +411,7 @@ def main():
             #         val_rep_probs, 'val', 0, use_background=use_background, model_bg=model_bg)
 
             test_WER = iterate(model, None, test_lines, False, ['none'],
-                    [1.0], 'test', 0, False, use_background=use_background, model_bg=model_bg, pred_f=pred_f, ori_f=ori_f)
+                    [1.0], 'test', 0, False, use_background=use_background, model_bg=model_bg, pred_f=pred_f)
 
             # report the time taken per iteration for val + test
             en_time = time.time()
@@ -429,7 +422,6 @@ def main():
             #         + str(test_WER))
 
             pred_f.close()
-            ori_f.close()
 
     return
 

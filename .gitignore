@@ -1,5 +1,8 @@
 venv
 .idea/*
 defenses/elmo/*
+defenses/scRNN/model_temp/*
+defenses/scRNN/vocab/*
 data/EM/datasets/*
 __pycache__
+
